@@ -160,11 +160,7 @@ void users() {
 }
 
 int select( char* phone_numb){
-    if(userDatabase[0].phone != NULL){
-        printf("%s\n", userDatabase[0].phone);
-    }
-  
-
+   
     for (int i = 0; i < num_users; i++) {
         //printf("Comparing: %s and %s\n", userDatabase[i].phone, phone_numb);
         //phone_numb = trim(phone_numb);
