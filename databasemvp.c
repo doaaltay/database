@@ -36,9 +36,10 @@ int select(char* phone_numb);
 int select_by_name(char* name);
 char *trim(char *str);
 void update(char* tokens[4]);
-void list_types();
+void types();
 void delete(char* tokens[2]);
-
+void help();
+void addhelp();
 int num_users = 0;
 
 typedef struct{
@@ -46,14 +47,20 @@ typedef struct{
     char phone[MAX_DATA];
     char email[MAX_DATA];
     char birthday[MAX_DATA];
+    char age[MAX_DATA];
+    char job[MAX_DATA];
+    char city[MAX_DATA];// city they're based on
+    char pronouns[MAX_DATA];
+    char preferred[MAX_DATA]; // preferred communication method
+    char availability[MAX_DATA]; //person's availability 
 } User;
 
 //initializing the database ( array of users)
 User userDatabase[MAX_USER_DATABASE];
 
 
-void list_types() {
-    printf("name\temail\tbirthday\n");
+void types() {
+    printf("name\nemail\nbirthday\nage\njob\ncity\npronouns\npreferred\navailability\n");
 }
 
 
@@ -66,8 +73,9 @@ int main() {
     "  execute <command> [options]\n\n"
     "Commands:\n"
     "  add                                   Add a new user.\n"
+    "  addhelp                               Show the format to add a new user.\n"
     "  search <phone number>                 Search their name by entering the phone number.\n"
-    "  update <phone number> <type> <change> Update name email or birthday by phone number.\n"
+    "  update <phone number> <type> <change> Update <type> by phone number. Enter type to see types you can change.\n"
     "  delete <phone number>                 Delete user info by phone number.\n"
     "  users                                 List all users.\n"
     "  types                                 List types used in update.\n"
@@ -101,8 +109,22 @@ int main() {
         char *cmd = tokens[0];
 
         if (strcmp(cmd, "add") == 0) {
-            add();
-        } else if (strcmp(cmd, "users") == 0) {
+            if(tokens_length < 2){
+                printf("Invalid number of arguments\n");
+                printf("Usage: add <user info>\n");
+                continue;
+            }
+            add(tokens[1]);
+        } else if(strcmp(cmd, "types") == 0){
+            types();
+        } else if (strcmp(cmd, "help") == 0) {
+            help();
+        }
+        else if(strcmp(cmd, "addhelp") == 0){
+            addhelp();
+        }
+        
+        else if (strcmp(cmd, "users") == 0) {
             users();
         }else if(strcmp(cmd, "search")== 0){
             search(tokens, tokens_length);
@@ -127,28 +149,86 @@ int main() {
 
 }
 
+void addhelp(){
+    printf("Enter user information in the following format:\n");
+    printf("name,phone,birthday,email,age,job,city,pronouns,preferred(communication method),availability\n");
+    printf("To skip information, enter two consecutive commas\n");
+    printf("Example: Alex T,1234567890,01/01/2000,,20,Engineer,New York,he/him,phone,weekdays\n");
+}
 
-void add() {
+void add(char* user_info) {
     if (num_users >= MAX_USER_DATABASE) {
         printf("User database is full.\n");
         return;
     }
 
-    User new_user;
+ 
+    User new_user={0};
+    char* token;
+    char* rest= user_info;
 
-    printf("Enter full name (string: Any): ");
-    fgets(new_user.name, sizeof(new_user.name), stdin);
 
-    printf("Enter phone number (string: xxx-xxx-xxxx): ");
-    fgets(new_user.phone, sizeof(new_user.phone), stdin);
-    trim(new_user.phone);
+    token = strsep(&rest, ",");
+    if (token != NULL) {
+        strncpy(new_user.name, token, sizeof(new_user.name) - 1);
+        new_user.name[sizeof(new_user.name) - 1] = '\0';
+    }
 
-    printf("Enter birthday yyyy-mm-dd (string: yyyy-mm-dd): ");
-    fgets(new_user.birthday, sizeof(new_user.birthday), stdin);
+    token = strsep(&rest, ",");
+    if (token != NULL) {
+        strncpy(new_user.phone, token, sizeof(new_user.phone) - 1);
+        new_user.phone[sizeof(new_user.phone) - 1] = '\0';
+        char* trimmed_phone = trim(new_user.phone);
+        strncpy(new_user.phone, trimmed_phone, sizeof(new_user.phone) - 1);  //added
+    }
+    
 
-    printf("Enter email address (string: Any): ");
-    fgets(new_user.email, sizeof(new_user.email), stdin);
+    token = strsep(&rest, ",");
+    if (token != NULL) {
+        strncpy(new_user.birthday, token, sizeof(new_user.birthday) - 1);
+        new_user.birthday[sizeof(new_user.birthday) - 1] = '\0';
+    }
 
+    token = strsep(&rest, ",");
+    if (token != NULL) {
+        strncpy(new_user.email, token, sizeof(new_user.email) - 1);
+        new_user.email[sizeof(new_user.email) - 1] = '\0';
+    }
+
+    token = strsep(&rest, ",");
+    if (token != NULL) {
+        strncpy(new_user.age, token, sizeof(new_user.age) - 1);
+        new_user.age[sizeof(new_user.age) - 1] = '\0';
+    }
+
+    token = strsep(&rest, ",");
+    if (token != NULL) {
+        strncpy(new_user.job, token, sizeof(new_user.job) - 1);
+        new_user.job[sizeof(new_user.job) - 1] = '\0';
+    }
+    token = strsep(&rest, ",");
+    if (token != NULL) {
+        strncpy(new_user.city, token, sizeof(new_user.city) - 1);
+        new_user.city[sizeof(new_user.city) - 1] = '\0';
+    }
+
+    token = strsep(&rest, ",");
+    if (token != NULL) {
+        strncpy(new_user.pronouns, token, sizeof(new_user.pronouns) - 1);
+        new_user.pronouns[sizeof(new_user.pronouns) - 1] = '\0';
+    }
+
+    token = strsep(&rest, ",");
+    if (token != NULL) {
+        strncpy(new_user.preferred, token, sizeof(new_user.preferred) - 1);
+        new_user.preferred[sizeof(new_user.preferred) - 1] = '\0';
+    }
+
+    token = strsep(&rest, ",");
+    if (token != NULL) {
+        strncpy(new_user.availability, token, sizeof(new_user.availability) - 1);
+        new_user.availability[sizeof(new_user.availability) - 1] = '\0';
+    }
 
     userDatabase[num_users++] = new_user;
 }
@@ -203,13 +283,19 @@ void search( char* tokens[], int tokens_length){
     printf("Phone: %s\n", userDatabase[index].phone);
     printf("Birthday: %s\n", userDatabase[index].birthday);
     printf("Email: %s\n", userDatabase[index].email);
+    printf("Age: %s\n", userDatabase[index].age);
+    printf("Job: %s\n", userDatabase[index].job);
+    printf("City: %s\n", userDatabase[index].city);
+    printf("Pronouns: %s\n", userDatabase[index].pronouns);
+    printf("Preferred communication method: %s\n", userDatabase[index].preferred);
+    printf("Availability: %s\n", userDatabase[index].availability);
 }
 
 char *trim(char *str) {
     char *end;
     while(isspace((unsigned char)*str)) str++;
 
-    if(*str == 0)  // All spaces?
+    if(*str == 0) 
         return str;
 
     end = str + strlen(str) - 1;
@@ -227,6 +313,7 @@ void update (char* tokens[4]){
     }
 
     char* phone_number = tokens[1];
+    //trim(phone_number);
     char* type = tokens[2];
     char* change = tokens[3];
 
@@ -242,6 +329,18 @@ void update (char* tokens[4]){
         strcpy(userDatabase[index].email, change);
     } else if(strcmp(type, "birthday") == 0){
         strcpy(userDatabase[index].birthday, change);
+    } else if (strcmp(type, "age") == 0){
+        strcpy(userDatabase[index].age, change);
+    } else if (strcmp(type, "job") == 0){
+        strcpy(userDatabase[index].job, change);
+    } else if (strcmp(type, "city") == 0){
+        strcpy(userDatabase[index].city, change);
+    } else if (strcmp(type, "pronouns") == 0){
+        strcpy(userDatabase[index].pronouns, change);
+    } else if (strcmp(type, "preferred") == 0){
+        strcpy(userDatabase[index].preferred, change);
+    } else if (strcmp(type, "availability") == 0){
+        strcpy(userDatabase[index].availability, change);
     } else {
         printf("Invalid type\n");
    
@@ -268,4 +367,14 @@ void delete(char* tokens[2]){
 }
 
 
-
+void help(){
+    printf("Commands:\n");
+    printf("  add                                   Add a new user.\n");
+    printf("  search <phone number>                 Search their name by entering the phone number.\n");
+    printf("  update <phone number> <type> <change> Update <type> by phone number. Enter types to see types you can change.\n");
+    printf("  delete <phone number>                 Delete user info by phone number.\n");
+    printf("  users                                 List all users.\n");
+    printf("  types                                 List types used in update.\n");
+    printf("  help                                  Show this list of commands.\n");
+    
+    }
