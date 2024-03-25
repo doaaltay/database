@@ -150,10 +150,12 @@ int main() {
 }
 
 void addhelp(){
-    printf("Enter user information in the following format:\n");
-    printf("name,phone,birthday,email,age,job,city,pronouns,preferred(communication method),availability\n");
+    printf("Enter user information in the following format:\n\n");
+    printf("name,phone,birthday,email,age,job,city,pronouns,preferred(communication method),availability\n\n");
     printf("To skip information, enter two consecutive commas\n");
-    printf("Example: Alex T,1234567890,01/01/2000,,20,Engineer,New York,he/him,phone,weekdays\n");
+    printf("Example: Alex,1234567890,01/01/2000,,20,Engineer,New York,he/him,phone,weekdays\n\n");
+
+    printf("If you want to enter lastname enter it in this format: Alex-Smith\n");
 }
 
 void add(char* user_info) {
