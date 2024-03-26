@@ -8,6 +8,17 @@
 #define NUMBER_FOUND "Number is found"
 #define MAX_DATA 100
 
+#define maxname 30
+#define maxphone 11
+#define maxemail 50
+#define maxbirthday 20
+#define maxage 3
+#define maxjob 50
+#define maxcity 50
+#define maxpronouns 30
+#define maxpreferred 30
+#define maxavailability 50
+
 void add();
 void users();
 void search (char* tokens[], int tokens_length);
@@ -23,15 +34,16 @@ FILE *users_file;
 
 
 
+
 typedef struct{
-    char name[MAX_DATA];
-    char phone[MAX_DATA];
-    char email[MAX_DATA];
-    char birthday[MAX_DATA];
-    char age[MAX_DATA];
-    char job[MAX_DATA];
-    char city[MAX_DATA];// city they're based on
-    char pronouns[MAX_DATA];
+    char name[maxname];
+    char phone[maxphone];
+    char email[maxemail];
+    char birthday[maxbirthday];
+    char age[maxage];
+    char job[maxjob];
+    char city[maxcity];// city they're based on
+    char pronouns[maxpronouns];
     char preferred[MAX_DATA]; // preferred communication method
     char availability[MAX_DATA]; //person's availability 
 } User;
@@ -162,17 +174,26 @@ void add(char* user_info){
     }
     int field = 0;
     while ((token = strsep(&rest, ",")) != NULL) {
-        if (field == 1) { // phone number is the second field
-            strncpy(new_user.phone, token, sizeof(new_user.phone) - 1);
-            new_user.phone[sizeof(new_user.phone) - 1] = '\0';
-            char* trimmed_phone = trim(new_user.phone);
-            strncpy(new_user.phone, trimmed_phone, sizeof(new_user.phone) - 1);
-            token = new_user.phone; // replace the token with the trimmed phone number
+        char formatted[MAX_DATA];
+        int max_size;
+        switch (field) {
+            case 0: max_size = maxname; break;
+            case 1: max_size = maxphone; break;
+            case 2: max_size = maxemail; break;
+            case 3: max_size = maxbirthday; break;
+            case 4: max_size = maxage; break;
+            case 5: max_size = maxjob; break;
+            case 6: max_size = maxcity; break;
+            case 7: max_size = maxpronouns; break;
+            case 8: max_size = maxpreferred; break;
+            case 9: max_size = maxavailability; break;
+            default: max_size = MAX_DATA; break;
         }
-        fprintf(file, "%s,", token);
+        // format the token with a fixed width
+        sprintf(formatted, "%-*s", max_size, token);
+        fprintf(file, "%s,", formatted);
         field++;
     }
-
 
     fprintf(file, "\n");
     fclose(file);
@@ -229,7 +250,6 @@ void search (char* tokens[], int tokens_length){
         return;
     }
 
-
     char line[1024];
 
     while(fgets(line, sizeof(line), file)){
@@ -240,24 +260,24 @@ void search (char* tokens[], int tokens_length){
         int match= 0;
 
         while (token!=NULL){
-            if(field == 1 && strcmp(token, phone_numb) == 0){
-                match= 1;
-                
+            if(field == 1){
+                char* trimmed_token = trim(token);
+                if(strcmp(trimmed_token, phone_numb) == 0){
+                    match= 1;
+                }
             }
             token= strtok(NULL, ",");
             field++;
         }
         if(match){
-                printf("%s\n", line);
-
-            }
+            printf("%s\n", line);
+        }
         free(tmp);
-
     }
 
     fclose(file);
-
 }
+
 
 
 void update(char* tokens[4]){
