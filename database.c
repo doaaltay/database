@@ -311,7 +311,7 @@ void update(char* tokens[]) {
     }
 
     char line[1024];
-    char output[1024 * MAX_USER_DATABASE] = ""; // assuming MAX_USER_DATABASE is the maximum number of users
+    char output[1024 * MAX_USER_DATABASE] = ""; 
 
     while(fgets(line, sizeof(line), file)){
         char* tmp = strdup(line); // temp holder
@@ -322,10 +322,10 @@ void update(char* tokens[]) {
         char updated_line[1024] = "";
 
         while (token != NULL){
-            char formatted_phone_numb[maxphone + 1]; //added recently, increased size by 1
+            char formatted_phone_numb[maxphone + 1]; 
             sprintf(formatted_phone_numb, "%-*s", maxphone, phone_numb);
 
-            if(field == 1 && strcmp(token, formatted_phone_numb) == 0){ // use formatted_phone_numb here
+            if(field == 1 && strcmp(token, formatted_phone_numb) == 0){ 
                 match = 1;
                 printf("Matched phone number\n");
             }
@@ -347,7 +347,7 @@ void update(char* tokens[]) {
                     case 9: max_size = maxavailability; break;
                     default: max_size = MAX_DATA; break;
                 }
-                // format the change with a fixed width
+             
                 sprintf(formatted, "%-*s", max_size, change);
                 strcat(updated_line, formatted);
             } else {
