@@ -179,6 +179,59 @@ void add(char* user_info){
         return;
     }
     int field = 0;
+    for(field = 0; field < 10; field++) {
+        char formatted[MAX_DATA];
+        int max_size;
+        token = strsep(&rest, ",");
+        if (token == NULL) {
+            token = "";
+        }
+        switch (field) {
+            case 0: max_size = maxname; strncpy(new_user.name, token, maxname); break;
+            case 1: max_size = maxphone; strncpy(new_user.phone, token, maxphone); break;
+            case 2: max_size = maxbirthday; strncpy(new_user.birthday, token, maxbirthday); break;
+            case 3: max_size = maxemail; strncpy(new_user.email, token, maxemail); break;
+            case 4: 
+                max_size = maxage; 
+                int age = atoi(token);
+                snprintf(new_user.age, sizeof(new_user.age), "%d", age);
+                break;
+            case 5: max_size = maxjob; strncpy(new_user.job, token, maxjob); break;
+            case 6: max_size = maxcity; strncpy(new_user.city, token, maxcity); break;
+            case 7: max_size = maxpronouns; strncpy(new_user.pronouns, token, maxpronouns); break;
+            case 8: max_size = maxpreferred; strncpy(new_user.preferred, token, maxpreferred); break;
+            case 9: max_size = maxavailability; strncpy(new_user.availability, token, maxavailability); break;
+            default: max_size = MAX_DATA; break;
+        }
+        // fixed width format
+        sprintf(formatted, "%-*s", max_size, token);
+        fprintf(file, "%s,", formatted);
+    }
+
+    fprintf(file, "\n");
+    fclose(file);
+
+    userDatabase[num_users++] = new_user;
+
+}
+
+void addold(char* user_info){
+
+    if(num_users >= MAX_USER_DATABASE){
+        printf("Database is full\n");
+        return;
+    }   
+
+    User new_user={0}; //initialize all fields to 0
+    char* token;
+    char* rest=user_info;
+
+    FILE *file = fopen("users.csv", "a");
+    if (file == NULL) {
+        printf("Could not open file for writing\n");
+        return;
+    }
+    int field = 0;
     while ((token = strsep(&rest, ",")) != NULL) {
         char formatted[MAX_DATA];
         int max_size;
@@ -392,6 +445,7 @@ void update2(char* tokens[]) {
 void update(char* tokens[]) {
     //best so far
     /**
+    update: when number is not matched make sure its printing out error, also its adding unneseccary commas
      * #define maxname 20
 #define maxphone 11
 #define maxemail 20
