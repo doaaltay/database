@@ -358,12 +358,7 @@ char* field_to_string(int field) {
     }
 }
 
-
-
-
-
-
-void update2(char* tokens[]) {
+void update_best(char* tokens[]) {
     char* phone_numb = tokens[1];
     char* type = tokens[2];
     char* change = tokens[3];
@@ -375,15 +370,16 @@ void update2(char* tokens[]) {
     }
 
     char line[1024];
-    char output[1024 * MAX_USER_DATABASE] = ""; 
+    char output[1024 * MAX_USER_DATABASE] = ""; //char array to hold the updated data
+    int found = 0;
 
     while(fgets(line, sizeof(line), file)){
-        char* tmp = strdup(line); 
+        char* tmp = strdup(line); // temp holder of current line
         char* token = strtok(tmp, ",");
-        int field = 0; 
+        int field = 0; //counter for field
         int match = 0;
 
-        char updated_line[1024] = ""; 
+        char updated_line[1024] = ""; //hold updateds line
 
         while (token != NULL){
             char formatted_phone_numb[maxphone + 1]; 
@@ -391,10 +387,10 @@ void update2(char* tokens[]) {
 
             if(field == 1 && strcmp(token, formatted_phone_numb) == 0){ 
                 match = 1;
+                found = 1;
                 printf("Matched phone number\n");
             }
-            //printf("Current field: '%s', Provided field: '%s'\n", field_to_string(field), type);
-            type = trim(type);
+
             if(match && strcmp(type, field_to_string(field)) == 0){
                 printf("Updating field %s\n", type);
                 char formatted[MAX_DATA];
@@ -402,14 +398,14 @@ void update2(char* tokens[]) {
                 switch (field) {
                     case 0: max_size = maxname; break;
                     case 1: max_size = maxphone; break;
+                    case 2: max_size = maxbirthday; break;
                     case 3: max_size = maxemail; break;
-                    case 4: max_size = maxbirthday; break;
-                    case 5: max_size = maxage; break;
-                    case 6: max_size = maxjob; break;
-                    case 7: max_size = maxcity; break;
-                    case 8: max_size = maxpronouns; break;
-                    case 9: max_size = maxpreferred; break;
-                    case 10: max_size = maxavailability; break;
+                    case 4: max_size = maxage; break;
+                    case 5: max_size = maxjob; break;
+                    case 6: max_size = maxcity; break;
+                    case 7: max_size = maxpronouns; break;
+                    case 8: max_size = maxpreferred; break;
+                    case 9: max_size = maxavailability; break;
                     default: max_size = MAX_DATA; break;
                 }
              
@@ -431,6 +427,11 @@ void update2(char* tokens[]) {
 
     fclose(file);
 
+    if (!found) {
+        printf("Phone number not found\n");
+        return;
+    }
+
     file = fopen("users.csv", "w");
     if(file == NULL){
         printf("Could not open file for writing-update\n");
@@ -439,11 +440,112 @@ void update2(char* tokens[]) {
 
     fputs(output, file);
     fclose(file);
+
+    // Update userDatabase array
+    for (int i = 0; i < num_users; i++) {
+        if (strcmp(userDatabase[i].phone, phone_numb) == 0) {
+            // Update the field in the userDatabase array
+            // ...
+            break;
+        }
+    }
 }
-
-
 void update(char* tokens[]) {
-    //best so far
+    char* phone_numb = tokens[1];
+    char* type = tokens[2];
+    char* change = tokens[3];
+
+    FILE *file = fopen("users.csv", "r");
+    if(file == NULL){
+        printf("Could not open file for reading-update\n");
+        return;
+    }
+
+    char line[1024];
+    char output[1024 * MAX_USER_DATABASE] = ""; //char array to hold the updated data
+    int found = 0;
+
+    while(fgets(line, sizeof(line), file)){
+        char* tmp = strdup(line); // temp holder of current line
+        char* token = strtok(tmp, ",");
+        int field = 0; //counter for field
+        int match = 0;
+
+        char updated_line[1024] = ""; //hold updateds line
+
+        while (token != NULL){
+            char formatted_phone_numb[maxphone + 1]; 
+            sprintf(formatted_phone_numb, "%-*s", maxphone, phone_numb);
+
+            if(field == 1 && strcmp(token, formatted_phone_numb) == 0){ 
+                match = 1;
+                found = 1;
+                printf("Matched phone number\n");
+            }
+
+            if(match && strcmp(type, field_to_string(field)) == 0){
+                printf("Updating field %s\n", type);
+                char formatted[MAX_DATA];
+                int max_size;
+                switch (field) {
+                    case 0: max_size = maxname; break;
+                    case 1: max_size = maxphone; break;
+                    case 2: max_size = maxbirthday; break;
+                    case 3: max_size = maxemail; break;
+                    case 4: max_size = maxage; break;
+                    case 5: max_size = maxjob; break;
+                    case 6: max_size = maxcity; break;
+                    case 7: max_size = maxpronouns; break;
+                    case 8: max_size = maxpreferred; break;
+                    case 9: max_size = maxavailability; break;
+                    default: max_size = MAX_DATA; break;
+                }
+             
+                sprintf(formatted, "%-*s", max_size, change);
+                strcat(updated_line, formatted);
+            } else {
+                strcat(updated_line, token);
+            }
+
+            token = strtok(NULL, ",");
+            if (token != NULL) {
+                strcat(updated_line, ",");
+            }
+            field++;
+        }
+
+        strcat(output, updated_line);
+        strcat(output, "\n");
+        free(tmp);
+    }
+
+    fclose(file);
+
+    if (!found) {
+        printf("Phone number not found\n");
+        return;
+    }
+
+    file = fopen("users.csv", "w");
+    if(file == NULL){
+        printf("Could not open file for writing-update\n");
+        return;
+    }
+
+    fputs(output, file);
+    fclose(file);
+
+    // Update userDatabase array
+    for (int i = 0; i < num_users; i++) {
+        if (strcmp(userDatabase[i].phone, phone_numb) == 0) {
+            // Update the field in the userDatabase array
+            // ...
+            break;
+        }
+    }
+}
+void update2(char* tokens[]) {
+    
     /**
     update: when number is not matched make sure its printing out error, also its adding unneseccary commas
      * #define maxname 20
