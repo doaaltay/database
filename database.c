@@ -521,12 +521,12 @@ void delete(char* tokens[2]){
     fclose(tempfile);
 
     if(found){
-        // Replace the original file with the temporary file
+        
         remove("users.csv");
         rename("temp.csv", "users.csv");
     } else {
         printf("No user found with phone number: %s\n", phone_number);
-        remove("temp.csv"); // Delete the temporary file
+        remove("temp.csv"); 
     }
 }
 
