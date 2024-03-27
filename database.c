@@ -8,6 +8,7 @@
 #define NUMBER_FOUND "Number is found"
 #define MAX_DATA 100
 
+
 void add();
 void users();
 void search (char* tokens[], int tokens_length);
@@ -17,21 +18,37 @@ void types();
 void delete(char* tokens[2]);
 void help();
 void addhelp();
+char* field_to_string(int field);
 int num_users = 0;
 
 FILE *users_file;
 
 
 
+#define maxname 20
+#define maxphone 11
+#define maxemail 20
+#define maxbirthday 10
+#define maxage 3
+#define maxjob 20
+#define maxcity 15
+#define maxpronouns 15
+#define maxpreferred 15
+#define maxavailability 15
+
+/**
+ * if gets too complicated keep the names same and makes them equal to the same size for each data field
+*/
+
 typedef struct{
-    char name[MAX_DATA];
-    char phone[MAX_DATA];
-    char email[MAX_DATA];
-    char birthday[MAX_DATA];
-    char age[MAX_DATA];
-    char job[MAX_DATA];
-    char city[MAX_DATA];// city they're based on
-    char pronouns[MAX_DATA];
+    char name[maxname];
+    char phone[maxphone];
+    char email[maxemail];
+    char birthday[maxbirthday];
+    char age[maxage];
+    char job[maxjob];
+    char city[maxcity];// city they're based on
+    char pronouns[maxpronouns];
     char preferred[MAX_DATA]; // preferred communication method
     char availability[MAX_DATA]; //person's availability 
 } User;
@@ -139,9 +156,10 @@ void addhelp(){
     printf("Enter user information in the following format:\n\n");
     printf("name,phone,birthday,email,age,job,city,pronouns,preferred(communication method),availability\n\n");
     printf("To skip information, enter two consecutive commas\n");
-    printf("Example: Alex,1234567890,01/01/2000,,20,Engineer,New York,he/him,phone,weekdays\n\n");
+    printf("Example: Alex,1234567890,01/01/2000,,20,Engineer,New_York,he/him,phone,weekdays\n\n");
 
     printf("If you want to enter lastname enter it in this format: Alex-Smith\n");
+    printf("DO NOT enter spaces when entering data\n");
 }
 
 void add(char* user_info){
@@ -162,17 +180,26 @@ void add(char* user_info){
     }
     int field = 0;
     while ((token = strsep(&rest, ",")) != NULL) {
-        if (field == 1) { // phone number is the second field
-            strncpy(new_user.phone, token, sizeof(new_user.phone) - 1);
-            new_user.phone[sizeof(new_user.phone) - 1] = '\0';
-            char* trimmed_phone = trim(new_user.phone);
-            strncpy(new_user.phone, trimmed_phone, sizeof(new_user.phone) - 1);
-            token = new_user.phone; // replace the token with the trimmed phone number
+        char formatted[MAX_DATA];
+        int max_size;
+        switch (field) {
+            case 0: max_size = maxname; break;
+            case 1: max_size = maxphone; break;
+            case 2: max_size = maxbirthday; break;
+            case 3: max_size = maxemail; break;
+            case 4: max_size = maxage; break;
+            case 5: max_size = maxjob; break;
+            case 6: max_size = maxcity; break;
+            case 7: max_size = maxpronouns; break;
+            case 8: max_size = maxpreferred; break;
+            case 9: max_size = maxavailability; break;
+            default: max_size = MAX_DATA; break;
         }
-        fprintf(file, "%s,", token);
+        // format the token with a fixed width
+        sprintf(formatted, "%-*s", max_size, token);
+        fprintf(file, "%s,", formatted);
         field++;
     }
-
 
     fprintf(file, "\n");
     fclose(file);
@@ -229,7 +256,6 @@ void search (char* tokens[], int tokens_length){
         return;
     }
 
-
     char line[1024];
 
     while(fgets(line, sizeof(line), file)){
@@ -240,51 +266,22 @@ void search (char* tokens[], int tokens_length){
         int match= 0;
 
         while (token!=NULL){
-            if(field == 1 && strcmp(token, phone_numb) == 0){
-                match= 1;
-                
+            if(field == 1){
+                char* trimmed_token = trim(token);
+                if(strcmp(trimmed_token, phone_numb) == 0){
+                    match= 1;
+                }
             }
             token= strtok(NULL, ",");
             field++;
         }
         if(match){
-                printf("%s\n", line);
-
-            }
+            printf("%s\n", line);
+        }
         free(tmp);
-
     }
 
     fclose(file);
-
-}
-
-
-void update(char* tokens[4]){
-    if(tokens[1]== NULL || tokens[2] == NULL || tokens[3] == NULL){
-        printf("Invalid number of arguments\n");
-        printf("Usage: update <phone number> <type> <change>\n");
-        return;
-    }
-
-    char* phone_numb = tokens[1];
-    char* type = tokens[2];
-    char* change = tokens[3];
-    FILE *file = fopen("users.csv", "r");
-    if(file == NULL){
-        printf("Could not open file for reading-update\n");
-        return;
-    }
-
-    //taking the line and updating the fields
-    char lines[MAX_USER_DATABASE][1024];
-    int line_counter=0;
-
-    char line[1024];
-
-    //read each line from file
-
-   
 }
 
 void types(){
@@ -292,11 +289,247 @@ void types(){
      printf("name\nemail\nbirthday\nage\njob\ncity\npronouns\npreferred\navailability\n");
 
 }
-void delete(char* tokens[2]){
-    //TODO
-
-
+char* field_to_string(int field) {
+    switch(field) {
+        case 0: return "name";
+        case 1: return "phone";
+        case 2: return "birthday";
+        case 3: return "email";
+        case 4: return "age";
+        case 5: return "job";
+        case 6: return "city";
+        case 7: return "pronouns";
+        case 8: return "preferred";
+        case 9: return "availability";
+        default: return "";
+    }
 }
+
+
+void update(char* tokens[]) {
+    char* phone_numb = tokens[1];
+    char* type = tokens[2];
+    char* change = tokens[3];
+
+    FILE *file = fopen("users.csv", "r");
+    if(file == NULL){
+        printf("Could not open file for reading-update\n");
+        return;
+    }
+
+    char line[1024];
+    char output[1024 * MAX_USER_DATABASE] = ""; 
+
+    while(fgets(line, sizeof(line), file)){
+        char* tmp = strdup(line); // temp holder
+        char* token = strtok(tmp, ",");
+        int field = 0;
+        int match = 0;
+
+        char updated_line[1024] = "";
+
+        while (field < 10){
+            char formatted_phone_numb[maxphone + 1]; 
+            sprintf(formatted_phone_numb, "%-*s", maxphone, phone_numb);
+
+            if(field == 1 && strcmp(token, formatted_phone_numb) == 0){ 
+                match = 1;
+                printf("Matched phone number\n");
+            }
+
+            char formatted[MAX_DATA];
+            int max_size;
+            switch (field) {
+                case 0: max_size = maxname; break;
+                case 1: max_size = maxphone; break;
+                case 2: max_size = maxbirthday; break;
+                case 3: max_size = maxemail; break;
+                case 4: max_size = maxage; break;
+                case 5: max_size = maxjob; break;
+                case 6: max_size = maxcity; break;
+                case 7: max_size = maxpronouns; break;
+                case 8: max_size = maxpreferred; break;
+                case 9: max_size = maxavailability; break;
+                default: max_size = MAX_DATA; break;
+            }
+
+            if(match && strcmp(type, field_to_string(field)) == 0){
+                printf("Updating field %s\n", type);
+                sprintf(formatted, "%-*s", max_size, change);
+            } else if (token == NULL || strlen(token) == 0 || strcmp(token, "\n") == 0) {
+                sprintf(formatted, "%-*s", max_size, " ");
+            } else {
+                strcpy(formatted, token);
+            }
+
+            strcat(updated_line, formatted);
+            if (field != 9) {
+                strcat(updated_line, ",");
+            }
+            if (token != NULL) {
+                token = strtok(NULL, ",");
+            }
+            field++;
+        }
+
+        strcat(output, updated_line);
+        strcat(output, "\n");
+        free(tmp);
+    }
+
+    fclose(file);
+
+    file = fopen("users.csv", "w");
+    if(file == NULL){
+        printf("Could not open file for writing-update\n");
+        return;
+    }
+
+    fputs(output, file);
+    fclose(file);
+}
+
+
+void oldupdate(char* tokens[]) {
+    char* phone_numb = tokens[1];
+    char* type = tokens[2];
+    char* change = tokens[3];
+
+    FILE *file = fopen("users.csv", "r");
+    if(file == NULL){
+        printf("Could not open file for reading-update\n");
+        return;
+    }
+
+    char line[1024];
+    char output[1024 * MAX_USER_DATABASE] = ""; 
+
+    while(fgets(line, sizeof(line), file)){
+        char* tmp = strdup(line); // temp holder
+        char* token = strtok(tmp, ",");
+        int field = 0;
+        int match = 0;
+
+        char updated_line[1024] = "";
+
+        while (token != NULL){
+            char formatted_phone_numb[maxphone + 1]; 
+            sprintf(formatted_phone_numb, "%-*s", maxphone, phone_numb);
+
+            if(field == 1 && strcmp(token, formatted_phone_numb) == 0){ 
+                match = 1;
+                printf("Matched phone number\n");
+            }
+
+            if(match && strcmp(type, field_to_string(field)) == 0){
+                printf("Updating field %s\n", type);
+                char formatted[MAX_DATA];
+                int max_size;
+                switch (field) {
+                    case 0: max_size = maxname; break;
+                    case 1: max_size = maxphone; break;
+                    
+                    case 3: max_size = maxemail; break;
+                    case 4: max_size = maxage; break;
+                    case 5: max_size = maxjob; break;
+                    case 6: max_size = maxcity; break;
+                    case 7: max_size = maxpronouns; break;
+                    case 8: max_size = maxpreferred; break;
+                    case 9: max_size = maxavailability; break;
+                    default: max_size = MAX_DATA; break;
+                }
+             
+                sprintf(formatted, "%-*s", max_size, change);
+                strcat(updated_line, formatted);
+            } else {
+                strcat(updated_line, token);
+            }
+
+            strcat(updated_line, ",");
+            token = strtok(NULL, ",");
+            field++;
+        }
+
+        strcat(output, updated_line);
+        strcat(output, "\n");
+        free(tmp);
+    }
+
+    fclose(file);
+
+    file = fopen("users.csv", "w");
+    if(file == NULL){
+        printf("Could not open file for writing-update\n");
+        return;
+    }
+
+    fputs(output, file);
+    fclose(file);
+}
+
+void delete(char* tokens[2]){
+    if(tokens[1] == NULL){
+        printf("Invalid number of arguments\n");
+        printf("Usage: delete <phone number>\n");
+        return;
+    }
+
+    char* phone_number = tokens[1];
+
+    FILE *file = fopen("users.csv", "r");
+    if(file == NULL){
+        printf("Could not open file for reading\n");
+        return;
+    }
+
+    FILE *tempfile = fopen("temp.csv", "w");
+    if(tempfile == NULL){
+        printf("Could not open temporary file for writing\n");
+        fclose(file);
+        return;
+    }
+
+    char line[1024];
+    int found = 0;
+
+    while(fgets(line, sizeof(line), file)){
+        char* tmp = strdup(line); //temp holder
+        char* token = strtok(tmp, ",");
+        int field = 0;
+        int match = 0;
+
+        while (token != NULL){
+            if(field == 1){
+                char* trimmed_token = trim(token);
+                if(strcmp(trimmed_token, phone_number) == 0){
+                    match = 1;
+                    found = 1;
+                }
+            }
+            token = strtok(NULL, ",");
+            field++;
+        }
+
+        if(!match){
+            fprintf(tempfile, "%s", line);
+        }
+
+        free(tmp);
+    }
+
+    fclose(file);
+    fclose(tempfile);
+
+    if(found){
+        
+        remove("users.csv");
+        rename("temp.csv", "users.csv");
+    } else {
+        printf("No user found with phone number: %s\n", phone_number);
+        remove("temp.csv"); 
+    }
+}
+
 
 void help(){
     printf("Commands:\n");
