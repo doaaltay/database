@@ -4,6 +4,11 @@
 #include <ctype.h>
 
 
+#define MAX_TABLES 10
+#define MAX_FIELDS 10
+#define MAX_NAME 20
+
+
 
 #define maxname 20
 #define maxphone 11
@@ -45,6 +50,35 @@ void addcompanyhelp();
 
 FILE *users_binary;
 
+
+//creation of data types
+typedef enum {
+    STRING,
+    INTEGER
+} FieldType;
+
+typedef struct {
+    char name[MAX_NAME];
+    FieldType type;
+} Field;
+
+typedef struct {
+    char name[MAX_NAME];
+    Field fields[MAX_FIELDS];
+    int num_fields;
+} Table;
+
+//header structure
+typedef struct {
+    int num_records;
+    int record_size;
+    char record_type[50];
+    Table tables[MAX_TABLES];
+    int num_tables;
+} Header;
+
+
+
 //user
 
 typedef struct{
@@ -75,64 +109,33 @@ typedef struct {
 User userDatabase[MAX_USER_DATABASE];
 Company companyDatabase[MAX_USER_DATABASE];
 
-//header structure
-typedef struct {
-    int num_records;
-    int record_size;
-    char record_type[50];
-} Header;
-
-void serialize_user( User user, FILE *file) {
-    fwrite(&user, sizeof(User), 1, file);
+void serialize(void *item, size_t size, FILE *file) {
+    fwrite(item, size, 1, file);
 }
 
-User deserialize_user(FILE *file) {
-    User user;
-    fread(&user, sizeof(User), 1, file);
-    return user;
+void deserialize(void *item, size_t size, FILE *file) {
+    fread(item, size, 1, file);
 }
 
-void serialize_tree(Tree tree, FILE *file) {
-    fwrite(&tree, sizeof(Tree), 1, file);
-}
-
-Tree deserialize_tree(FILE *file) {
-    Tree tree;
-    fread(&tree, sizeof(Tree), 1, file);
-    return tree;
-}
-
-void serialize_company(Company company, FILE *file) {
-    fwrite(&company, sizeof(Company), 1, file);
-}
-
-Company deserialize_company(FILE *file) {
-    Company company;
-    fread(&company, sizeof(Company), 1, file);
-    return company;
-}
-
-void write_to_binary_file(User *userDatabase, int num_users) {
-    FILE *file = fopen("users.bin", "wb");
+void write_to_binary_file(void *database, int num_items, size_t item_size, const char *filename, const char *type) {
+    FILE *file = fopen(filename, "wb");
     if (file == NULL) {
         printf("Could not open file for writing\n");
         return;
     }
 
-    Header header = {num_users, sizeof(User), "User"};
+    Header header = {num_items, item_size, type};
     fwrite(&header, sizeof(Header), 1, file);
 
-    for(int i = 0; i < num_users; i++) {
-        serialize_user(userDatabase[i], file);
+    for(int i = 0; i < num_items; i++) {
+        serialize((char*)database + i * item_size, item_size, file);
     }
 
     fclose(file);
-
-  
 }
 
-void read_from_binary_file(User *userDatabase, int *num_users) {
-    FILE *file = fopen("users.bin", "rb");
+void read_from_binary_file(void *database, int *num_items, size_t item_size, const char *filename) {
+    FILE *file = fopen(filename, "rb");
     if (file == NULL) {
         printf("Could not open file for reading\n");
         return;
@@ -140,50 +143,14 @@ void read_from_binary_file(User *userDatabase, int *num_users) {
 
     Header header;
     fread(&header, sizeof(Header), 1, file);
-    *num_users = header.num_records;
+    *num_items = header.num_records;
 
     for(int i = 0; i < header.num_records; i++) {
-        userDatabase[i] = deserialize_user(file);
+        deserialize((char*)database + i * item_size, item_size, file);
     }
 
     fclose(file);
 }
-
-void write_to_binary_file_company(Company *companyDatabase, int num_companies) {
-    FILE *file = fopen("companies.bin", "wb");
-    if (file == NULL) {
-        printf("Could not open file for writing\n");
-        return;
-    }
-
-    Header header = {num_companies, sizeof(Company), "Company"};
-    fwrite(&header, sizeof(Header), 1, file);
-
-    for(int i = 0; i < num_companies; i++) {
-        serialize_company(companyDatabase[i], file);
-    }
-
-    fclose(file);
-}
-
-void read_from_binary_file_company(Company *companyDatabase, int *num_companies) {
-    FILE *file = fopen("companies.bin", "rb");
-    if (file == NULL) {
-        printf("Could not open file for reading\n");
-        return;
-    }
-
-    Header header;
-    fread(&header, sizeof(Header), 1, file);
-    *num_companies = header.num_records;
-
-    for(int i = 0; i < header.num_records; i++) {
-        companyDatabase[i] = deserialize_company(file);
-    }
-
-    fclose(file);
-}
-, 
 void addcompany(char* company_info){
     if(num_companies >= MAX_COMPANY_DATABASE){
         printf("Database is full\n");
@@ -216,7 +183,7 @@ void addcompany(char* company_info){
         }
     }
     companyDatabase[num_companies++] = new_company;
-    write_to_binary_file_company(companyDatabase, num_companies);
+    write_to_binary_file(companyDatabase, num_companies, sizeof(Company), "users.bin", "Company");
 }
 void update(char* tokens[]) {
     char* phone_numb = tokens[1];
@@ -269,7 +236,7 @@ void update(char* tokens[]) {
     }
 
    
-    write_to_binary_file(userDatabase, num_users);
+    write_to_binary_file(userDatabase, num_users, sizeof(User), "users.bin", "User");
 }
 
 void updatecompany(char* tokens[]) {
@@ -280,7 +247,7 @@ void updatecompany(char* tokens[]) {
     Company companyDatabase[MAX_COMPANY_DATABASE];
     int num_companies = 0;
 
-    read_from_binary_file_company(companyDatabase, &num_companies);
+    read_from_binary_file(companyDatabase, &num_companies, sizeof(Company), "users.bin");
 
     int found = 0;
 
@@ -315,12 +282,12 @@ void updatecompany(char* tokens[]) {
         return;
     }
 
-    write_to_binary_file_company(companyDatabase, num_companies);
+    write_to_binary_file(companyDatabase, num_companies, sizeof(Company), "users.bin", "Company");
 }
 void main() {
     printf("Welcome to the networking system!\n");
 
-    read_from_binary_file(userDatabase, &num_users);
+    read_from_binary_file(userDatabase, &num_users, sizeof(User), "users.bin");
 
     char *cmds = 
     "\nUsage:\n"
@@ -509,7 +476,7 @@ void search (char* tokens[], int tokens_length){
     int match = 0;
 
     for(int i = 0; i < header.num_records; i++) {
-        user = deserialize_user(file);
+        user = deserialize(file);
         char* trimmed_phone = trim(user.phone); // trim the phone number
         if(strcmp(trimmed_phone, phone_numb) == 0){
             match = 1;
@@ -537,7 +504,7 @@ void search (char* tokens[], int tokens_length){
 void searchcompany(char* tokens[], int tokens_length){
     char* company_name = tokens[1];
 
-    FILE *file = fopen("companies.bin", "rb");
+    FILE *file = fopen("users.bin", "rb");
     if(file == NULL){
         printf("Could not open file for reading-search\n");
         return;
@@ -550,7 +517,7 @@ void searchcompany(char* tokens[], int tokens_length){
     int match = 0;
 
     for(int i = 0; i < header.num_records; i++) {
-        company = deserialize_company(file);
+        company = deserialize(file, sizeof(Company);
         char* trimmed_name = trim(company.name); // trim the company name
         if(strcmp(trimmed_name, company_name) == 0){
             match = 1;
@@ -575,7 +542,7 @@ void searchcompany(char* tokens[], int tokens_length){
 void users() {
     User userDatabase[MAX_USER_DATABASE];
     int num_users = 0;
-    read_from_binary_file(userDatabase, &num_users);
+    read_from_binary_file(userDatabase, &num_users, sizeof(User), "users.bin");
     for(int i = 0; i < num_users; i++) {
         printf("%s, %s \n", userDatabase[i].name, userDatabase[i].phone);
     }
@@ -583,7 +550,7 @@ void users() {
 void companies() {
     Company companyDatabase[MAX_COMPANY_DATABASE];
     int num_companies = 0;
-    read_from_binary_file_company(companyDatabase, &num_companies);
+    read_from_binary_file(companyDatabase, &num_companies, sizeof(Company), "users.bin");
     for(int i = 0; i < num_companies; i++) {
         printf("%s, %s \n", companyDatabase[i].name, companyDatabase[i].phone);
     }
@@ -604,7 +571,7 @@ void delete(char* tokens[2]) {
     User userDatabase[MAX_USER_DATABASE];
     int num_users = 0;
 
-    read_from_binary_file(userDatabase, &num_users);
+    read_from_binary_file(userDatabase, &num_users, sizeof(User), "users.bin");
 
     int found = 0;
 
@@ -628,7 +595,7 @@ void delete(char* tokens[2]) {
         return;
     }
 
-    write_to_binary_file(userDatabase, num_users);
+    write_to_binary_file(userDatabase, num_users, sizeof(User), "users.bin", "User");
 }
 
 void deletecompany(char* tokens[2]) {
@@ -636,7 +603,7 @@ void deletecompany(char* tokens[2]) {
     Company companyDatabase[MAX_COMPANY_DATABASE];
     int num_companies = 0;
 
-    read_from_binary_file_company(companyDatabase, &num_companies);
+    read_from_binary_file(companyDatabase, &num_companies, sizeof(Company), "users.bin");
 
     int found = 0;
 
@@ -659,5 +626,6 @@ void deletecompany(char* tokens[2]) {
         return;
     }
 
-    write_to_binary_file_company(companyDatabase, num_companies);
+    write_to_binary_file(companyDatabase, num_companies, sizeof(Company), "users.bin", "Company");
+
 }
