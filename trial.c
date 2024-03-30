@@ -2,6 +2,8 @@
 #define max_num_fields 10
 #define maxdata 20
 #define max_num_tables 10
+#define buffer_size 1000
+#define EXIT_FAILURE 1
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
@@ -23,7 +25,7 @@ typedef struct{
     char name[FIELDNAMELENGTH];
     Field fields[max_num_fields];
     int num_fields;
-    //char file_name[FIELDNAMELENGTH];
+    
 } Table;
 
 typedef struct {
@@ -52,6 +54,8 @@ void search (char* table_name, char* search_value);
 void print_second_field(Record* record, Table* table);
 void* get_second_field(Record* record, Table* table);
 void print_record(Record* record, Table* table);
+void free_record(Record* record, Table* table);
+
 
 
 
@@ -88,6 +92,7 @@ void* get_second_field(Record* record, Table* table) {
         memcpy(second_field_value, record->values[1], maxdata);
     }
     return second_field_value;
+    free(second_field_value);
 }
 
 void print_second_field(Record* record, Table* table) {
@@ -127,6 +132,7 @@ void add(char* table_name, char* values) {
     Record new_record;
     parse_values(values, &new_record, table);
     add_record(table, &new_record);
+    free_record(&new_record, table);
 }
 
 void parse_values(char* values, Record* record, Table* table) {
@@ -151,6 +157,12 @@ Table* find_table(char* name) {
 void serialize_record(Record* record, char* buffer, Table* table) {
     int offset = 0;
     for (int i = 0; i < table->num_fields; i++) {
+
+        if (offset + sizeof(int) > buffer_size) { 
+            fprintf(stderr, "Buffer overflow in serialize_record\n"); 
+            exit(EXIT_FAILURE); 
+        }
+
         if (table->fields[i].type == FIELD_TYPE_INT) {
             memcpy(buffer + offset, record->values[i], sizeof(int));
             offset += sizeof(int);
@@ -164,6 +176,11 @@ void serialize_record(Record* record, char* buffer, Table* table) {
 void deserialize_record(Record* record, char* buffer, Table* table) {
     int offset = 0;
     for (int i = 0; i < table->num_fields; i++) {
+
+        if (offset + sizeof(int) > buffer_size) { 
+            fprintf(stderr, "Buffer overflow in deserialize_record\n");
+            exit(EXIT_FAILURE);
+        }
         if (table->fields[i].type == FIELD_TYPE_INT) {
             record->values[i] = malloc(sizeof(int));
             memcpy(record->values[i], buffer + offset, sizeof(int));
@@ -172,9 +189,20 @@ void deserialize_record(Record* record, char* buffer, Table* table) {
             record->values[i] = malloc(maxdata * sizeof(char));
             memcpy(record->values[i], buffer + offset, maxdata);
             offset += maxdata;
+            
         }
     }
 }
+
+void free_record(Record* record, Table* table) {
+    for (int i = 0; i < table->num_fields; i++) {
+        free(record->values[i]);
+    }
+    free(record->values);
+    free(record);
+}
+
+
 
 void print_record(Record* record, Table* table) {
     for(int i = 0; i < table->num_fields; i++) {
@@ -192,7 +220,7 @@ void write_to_binary_file(void* data, size_t size, const char* filename) {
     FILE *file = fopen(filename, "ab");
     if (file == NULL) {
         printf("Unable to open file\n");
-        return;
+        exit(EXIT_FAILURE);
     }
 
     size_t writeCount = fwrite(data, size, 1, file);
@@ -208,7 +236,7 @@ void read_from_binary_file(Record *recordDatabase, int *num_records, Table* tabl
     FILE *file = fopen(filename, "rb");
     if (file == NULL) {
         printf("Unable to open file\n");
-        return;
+        exit(EXIT_FAILURE);
     }
 
     Header header;
@@ -227,11 +255,11 @@ void read_from_binary_file(Record *recordDatabase, int *num_records, Table* tabl
 }
 
 void add_record(Table* table, Record* record) {
-    // serialize record
+ 
     char* buffer = malloc(table->num_fields * maxdata);
     serialize_record(record, buffer, table);
 
-    // write serialized record to binary
+   
     write_to_binary_file(buffer, table->num_fields * maxdata, "databasetrial.bin");
 
     free(buffer);
@@ -256,26 +284,27 @@ void search (char* table_name, char* search_value){
     Record record;
     int match = 0;
 
-    char* buffer = malloc(table->num_fields * maxdata); // Added buffer declaration and initialization
+    char* buffer = malloc(table->num_fields * maxdata);  
 
     for(int i = 0; i < header.num_records; i++) {
-        fread(buffer, sizeof(Record), 1, file); // read the record data into the buffer
+        fread(buffer, sizeof(Record), 1, file); 
         deserialize_record(&record, buffer, table);
-        char* second_field = get_second_field(&record, table); // get the second field
+        char* second_field = get_second_field(&record, table);
         if(strcmp(second_field, search_value) == 0){
             match = 1;
             print_record(&record, table);
-            free(second_field); // free the memory allocated by get_second_field
+           
             break;
         }
-        free(second_field); // free the memory allocated by get_second_field
+        free(second_field); 
+        free_record(&record, table);
     }
 
     if(!match){
         printf("No record found with second field %s in table %s\n", search_value, table_name);
     }
 
-    free(buffer); // Free the buffer memory
+    free(buffer); 
     fclose(file);
 }
 void main() {
@@ -304,7 +333,7 @@ void main() {
         printf("Enter a command: ");
         fgets(command, sizeof(command), stdin);
 
-        command[strcspn(command, "\n")] = 0; // remove newline character
+        command[strcspn(command, "\n")] = 0;
 
         char *token = strtok(command, " ");
         tokens_length = 0;
