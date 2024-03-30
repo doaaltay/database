@@ -226,6 +226,85 @@ void search(char *table_name, char *search_string) {
     fclose(file);
 }
 
+void write_padded_value(FILE* file, char* new_value) {
+    // Create a padded string with the new value
+    char padded_string[maxdata + 1];
+    int new_value_length = strlen(new_value);
+    if (new_value_length > maxdata) {
+        // Truncate the new value if it's too long
+        new_value_length = maxdata;
+    }
+    int padding_length = maxdata - new_value_length;
+    snprintf(padded_string, sizeof(padded_string), "%*s%.*s", padding_length, "", new_value_length, new_value);
+    // Write the padded string to the file
+    fputs(padded_string, file);
+}
+
+
+
+void update(char* table_name, char* search_value, char* field_name, char* new_value) {
+   
+    Table* table = NULL;
+    for (int i = 0; i < header.num_tables; i++) {
+        if (strcmp(header.tables[i].name, table_name) == 0) {
+            table = &header.tables[i];
+            break;
+        }
+    }
+    if (table == NULL) {
+        printf("Table not found\n");
+        return;
+    }
+
+    
+    FILE* file = fopen("databasenew.txt", "r+");
+    if (file == NULL) {
+        printf("Failed to open file\n");
+        return;
+    }
+
+    //read each line
+    char line[buffer_size];
+    long int start_of_line = ftell(file);
+    while (fgets(line, sizeof(line), file)) {
+        // get second field which is used for update
+        char* token = strtok(line, " ");
+        if (token != NULL) {
+            token = strtok(NULL, " ");
+        }
+        // check if this is the record to update
+        if (token != NULL && strcmp(token, search_value) == 0) {
+            // found the record 
+            // now find the field to update
+            for (int i = 0; i < table->num_fields; i++) {
+                if (strcmp(table->fields[i].name, field_name) == 0) {
+                    // found the field to update
+                    // calculate the start position of the field in the line
+                    int start_pos = i * maxdata;
+                  
+                    fseek(file, start_of_line + start_pos, SEEK_SET);
+     
+                    char padded_string[maxdata + 1];
+                    snprintf(padded_string, sizeof(padded_string), "%-*s", maxdata, new_value);
+
+
+                    fputs(padded_string, file);
+                    fclose(file);
+                    return;
+                }
+            }
+            printf("Field not found\n");
+            fclose(file);
+            return;
+        }
+        start_of_line = ftell(file);
+    }
+
+    printf("Record not found\n");
+    fclose(file);
+}
+
+
 void main() {
 
     FILE *file;
@@ -275,13 +354,21 @@ void main() {
     }
     add(tokens[1], tokens[2]);
 }
-else if (strcmp(cmd, "search") == 0) {
-    if(tokens_length < 3){
-        printf("Invalid number of arguments\n");
-        printf("Usage: search <table_name> <search_value>\n");
-        continue;
+    else if (strcmp(cmd, "search") == 0) {
+        if(tokens_length < 3){
+            printf("Invalid number of arguments\n");
+            printf("Usage: search <table_name> <search_value>\n");
+            continue;
     }
     search(tokens[1], tokens[2]);
+}
+    else if (strcmp(cmd, "update") == 0) {
+        if(tokens_length < 5){
+            printf("Invalid number of arguments\n");
+            printf("Usage: update <table_name> <search_value> <field_name> <new_value>\n");
+            continue;
+        }
+     update(tokens[1], tokens[2], tokens[3], tokens[4]);
 }
         else if(strcmp(cmd,"help")==0){
             printf("%s", cmds);
