@@ -240,6 +240,15 @@ void write_padded_value(FILE* file, char* new_value) {
     fputs(padded_string, file);
 }
 
+int get_field_index(Table* table, char* field_name) {
+    for (int i = 0; i < table->num_fields; i++) {
+        if (strcmp(table->fields[i].name, field_name) == 0) {
+            return i;
+        }
+    }
+    return -1; // return -1 if the field is not found
+}
+
 
 void update(char* table_name, char* search_value, char* field_name, char* new_value) {
     Table* table = NULL;
@@ -296,14 +305,18 @@ void update(char* table_name, char* search_value, char* field_name, char* new_va
 }
 
 
-void update2(char* table_name, char* search_value, char* field_name, char* new_value) {
-    char padded_new_value[maxdata + 3]; 
-    // +3 for two spaces and  null terminator
-    //- remove this: when you update email it is more on the left by 2 spaces
-    
-    
-    sprintf(padded_new_value, "  %s", new_value);
-    memcpy(new_value, padded_new_value, strlen(padded_new_value) + 1); // +1 for the null terminator?
+void update_removesphone(char* table_name, char* search_value, char* field_name, char* new_value) {
+    //removes phone
+    /**
+    update, updates the value of a field in    the record that matches the search value.
+    The field to update is specified by the field name.
+    The new value is specified by the new value.
+    should ensure this spacing
+name                 phone                email                birthday             age                  job                  city                 pronouns             preferred            availability         
+
+all the other data before and after the field should be preserved
+all data fields should maintain their fixed sizeat all times :maxdata
+    */
     Table* table = NULL;
     for (int i = 0; i < header.num_tables; i++) {
         if (strcmp(header.tables[i].name, table_name) == 0) {
@@ -316,7 +329,70 @@ void update2(char* table_name, char* search_value, char* field_name, char* new_v
         return;
     }
 
-    
+    int field_index = get_field_index(table, field_name);
+    if (field_index == -1) {
+        printf("Field not found\n");
+        return;
+    }
+
+    FILE* file = fopen("databasenew.txt", "r+");
+    if (file == NULL) {
+        printf("Failed to open file\n");
+        return;
+    }
+
+    char line[buffer_size];
+    long int start_of_line = ftell(file);
+    while (fgets(line, sizeof(line), file)) {
+        char* token = strtok(line, " ");
+        if (token != NULL) {
+            token = strtok(NULL, " ");
+        }
+
+        if (token != NULL && strcmp(token, search_value) == 0) {
+            char* fields[table->num_fields];
+            token = strtok(line, " ");
+            char blank[maxdata];
+            memset(blank, ' ', maxdata - 1);
+            blank[maxdata - 1] = '\0';
+            for (int i = 0; i < table->num_fields; i++) {
+                if (i == field_index) {
+                    fields[i] = new_value;
+                } else {
+                    fields[i] = token ? token : blank;
+                }
+                token = strtok(NULL, " ");
+            }
+
+            fseek(file, start_of_line, SEEK_SET);
+            for (int i = 0; i < table->num_fields; i++) {
+                fprintf(file, "%-*s ", maxdata, fields[i]);
+            }
+            fprintf(file, "\n");
+            fclose(file);
+            return;
+        }
+        start_of_line = ftell(file);
+    }
+
+    printf("Record not found\n");
+    fclose(file);
+}
+
+
+void updateold(char* table_name, char* search_value, char* field_name, char* new_value) {
+    Table* table = NULL;
+    for (int i = 0; i < header.num_tables; i++) {
+        if (strcmp(header.tables[i].name, table_name) == 0) {
+            table = &header.tables[i];
+            break;
+        }
+    }
+    if (table == NULL) {
+        printf("Table not found\n");
+        return;
+    }
+
     FILE* file = fopen("databasenew.txt", "r+");
     if (file == NULL) {
         printf("Failed to open file\n");
@@ -332,6 +408,7 @@ void update2(char* table_name, char* search_value, char* field_name, char* new_v
         if (token != NULL) {
             token = strtok(NULL, " ");
         }
+
         // check if this is the record to update
         if (token != NULL && strcmp(token, search_value) == 0) {
             // found the record 
@@ -340,17 +417,16 @@ void update2(char* table_name, char* search_value, char* field_name, char* new_v
                 if (strcmp(table->fields[i].name, field_name) == 0) {
                     // found the field to update
 
-
                     // calculate the start position of the field in the line
                     int start_pos = i * maxdata;
                   
                     fseek(file, start_of_line + start_pos, SEEK_SET);
      
-                    char padded_string[maxdata + 1];
-                    snprintf(padded_string, sizeof(padded_string), "%-*s", maxdata, new_value);
-
-
-                    fputs(padded_string, file);
+                    // Use fprintf to write the new value with a fixed width of maxdata.
+                    // This ensures that the new value will always occupy exactly maxdata characters,
+                    // regardless of its actual length. If the new value is shorter than maxdata,
+                    // the remaining space will be filled with spaces.
+                    fprintf(file, "%-*s", maxdata, new_value);
                     fclose(file);
                     return;
                 }
