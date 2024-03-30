@@ -1,310 +1,297 @@
-#include <stdio.h>
+#define FIELDNAMELENGTH 20
+#define max_num_fields 10
+#define maxdata 20
+#define max_num_tables 10
+#include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
-#include <ctype.h>
+#include <stdio.h>
 
 
-#define MAX_TABLES 10
-#define MAX_FIELDS 10
-#define MAX_NAME 20
+typedef enum{
+    FIELD_TYPE_INT,
+    FIELD_TYPE_STRING
+}FieldType;
 
-
-
-#define maxname 20
-#define maxphone 11
-#define maxemail 20
-#define maxbirthday 10
-#define maxage 3
-#define maxjob 20
-#define maxcity 15
-#define maxpronouns 15
-#define maxpreferred 15
-#define maxavailability 15
-#define MAX_DATA 100
-#define MAX_USER_DATABASE 1000
-#define MAX_COMPANY_DATABASE 1000
-
-
-void add();
-void users();
-void search (char* tokens[], int tokens_length);
-char *trim(char *str);
-void update(char* tokens[4]);
-void types();
-void delete(char* tokens[2]);
-void help();
-void addhelp();
-char* field_to_string(int field);
-int num_users = 0;
-
-
-int num_companies=0;
-
-void addcompany();
-void companies();
-void searchcompany(char* tokens[], int tokens_length);
-void updatecompany(char* tokens[4]);
-void companytypes(); //types to update
-void deletecompany(char* tokens[2]);
-void addcompanyhelp();
-
-FILE *users_binary;
-
-
-//creation of data types
-typedef enum {
-    STRING,
-    INTEGER
-} FieldType;
-
-typedef struct {
-    char name[MAX_NAME];
+typedef struct{
     FieldType type;
-} Field;
+    char name[FIELDNAMELENGTH];
+    int size;
+}Field;
 
-typedef struct {
-    char name[MAX_NAME];
-    Field fields[MAX_FIELDS];
+typedef struct{
+    char name[FIELDNAMELENGTH];
+    Field fields[max_num_fields];
     int num_fields;
+    //char file_name[FIELDNAMELENGTH];
 } Table;
 
-//header structure
 typedef struct {
+    void* values[max_num_fields];
+} Record;
+
+typedef struct{
     int num_records;
     int record_size;
-    char record_type[50];
-    Table tables[MAX_TABLES];
+    Table tables[max_num_tables];
     int num_tables;
 } Header;
 
 
-
-//user
-
-typedef struct{
-    char name[maxname];
-    char phone[maxphone];
-    char email[maxemail];
-    char birthday[maxbirthday];
-    char age[maxage];
-    char job[maxjob];
-    char city[maxcity];// city they're based on
-    char pronouns[maxpronouns];
-    char preferred[MAX_DATA]; // preferred communication method
-    char availability[MAX_DATA]; //person's availability 
-} User;
-
+void write_to_binary_file(void* data, size_t size, const char* filename);
+void read_from_binary_file(Record *recordDatabase, int *num_records, Table* table);
+void serialize_record(Record* record, char* buffer, Table* table);
+void deserialize_record(Record* record, char* buffer, Table* table);
+void add_record(Table* table, Record* record);
+void create_table(char *name, Field *fields, int num_fields);
+void add(char* table_name, char* values);
+void parse_values(char* values, Record* record, Table* table);
+Header* get_header();
+Table* find_table(char* name);
+void search (char* table_name, char* search_value);
+void print_second_field(Record* record, Table* table);
+void* get_second_field(Record* record, Table* table);
+void print_record(Record* record, Table* table);
 
 
-typedef struct {
-    char name[maxname];
-    char phone[maxphone];
-    char email[maxemail];
-    char founded[maxbirthday];
-    char location[maxcity];
-    char industry[maxjob];
-    char hiring[maxavailability];
-} Company;
 
-User userDatabase[MAX_USER_DATABASE];
-Company companyDatabase[MAX_USER_DATABASE];
+Field user_fields[]={
+    {FIELD_TYPE_STRING, "name", maxdata},
+    {FIELD_TYPE_STRING, "phone", maxdata},
+    {FIELD_TYPE_STRING, "email", maxdata},
+    {FIELD_TYPE_STRING, "birthday", maxdata},
+    {FIELD_TYPE_INT, "age", maxdata},
+    {FIELD_TYPE_STRING, "job", maxdata},
+    {FIELD_TYPE_STRING, "city", maxdata},
+    {FIELD_TYPE_STRING, "pronouns", maxdata},
+    {FIELD_TYPE_STRING, "preferred", maxdata},
+    {FIELD_TYPE_STRING, "availability", maxdata}
+};
 
-void serialize(void *item, size_t size, FILE *file) {
-    fwrite(item, size, 1, file);
+Field company_fields[]={
+    {FIELD_TYPE_STRING, "name", maxdata},
+    {FIELD_TYPE_STRING, "phone", maxdata},
+    {FIELD_TYPE_STRING, "email", maxdata},
+    {FIELD_TYPE_STRING, "founded", maxdata},
+    {FIELD_TYPE_STRING, "location", maxdata},
+    {FIELD_TYPE_STRING, "industry", maxdata},
+    {FIELD_TYPE_STRING, "hiring", maxdata}
+};
+
+void* get_second_field(Record* record, Table* table) {
+    void* second_field_value = NULL;
+    if (table->fields[1].type == FIELD_TYPE_INT) {
+        second_field_value = malloc(sizeof(int));
+        memcpy(second_field_value, record->values[1], sizeof(int));
+    } else if (table->fields[1].type == FIELD_TYPE_STRING) {
+        second_field_value = malloc(maxdata * sizeof(char));
+        memcpy(second_field_value, record->values[1], maxdata);
+    }
+    return second_field_value;
 }
 
-void deserialize(void *item, size_t size, FILE *file) {
-    fread(item, size, 1, file);
+void print_second_field(Record* record, Table* table) {
+    void* second_field_value = get_second_field(record, table);
+    if (table->fields[1].type == FIELD_TYPE_INT) {
+        printf("Second field: %d\n", *(int*)second_field_value);
+    } else if (table->fields[1].type == FIELD_TYPE_STRING) {
+        printf("Second field: %s\n", (char*)second_field_value);
+    }
+    free(second_field_value);
+}
+Header header = {0, 0, {{0}}, 0};
+
+void create_table(char *name, Field *fields, int num_fields) {
+    Table new_table;
+    strcpy(new_table.name, name);
+
+    for (int i = 0; i < num_fields; i++) {
+        fields[i].size = maxdata;
+        new_table.fields[i] = fields[i];
+    }
+
+    new_table.num_fields = num_fields;
+
+    header.tables[header.num_tables] = new_table;
+    header.num_tables++;
 }
 
-void write_to_binary_file(void *database, int num_items, size_t item_size, const char *filename, const char *type) {
-    FILE *file = fopen(filename, "wb");
-    if (file == NULL) {
-        printf("Could not open file for writing\n");
+void add(char* table_name, char* values) {
+    Table* table = find_table(table_name);
+
+    if (table == NULL) {
+        printf("Table not found\n");
         return;
     }
 
-    Header header = {num_items, item_size, type};
-    fwrite(&header, sizeof(Header), 1, file);
+    Record new_record;
+    parse_values(values, &new_record, table);
+    add_record(table, &new_record);
+}
 
-    for(int i = 0; i < num_items; i++) {
-        serialize((char*)database + i * item_size, item_size, file);
+void parse_values(char* values, Record* record, Table* table) {
+     deserialize_record(record, values, table);
+}
+
+
+
+Header* get_header() {
+    return &header;
+}
+
+Table* find_table(char* name) {
+    for (int i = 0; i < header.num_tables; i++) {
+        if (strcmp(header.tables[i].name, name) == 0) {
+            return &header.tables[i];
+        }
+    }
+    return NULL;
+}
+
+void serialize_record(Record* record, char* buffer, Table* table) {
+    int offset = 0;
+    for (int i = 0; i < table->num_fields; i++) {
+        if (table->fields[i].type == FIELD_TYPE_INT) {
+            memcpy(buffer + offset, record->values[i], sizeof(int));
+            offset += sizeof(int);
+        } else if (table->fields[i].type == FIELD_TYPE_STRING) {
+            memcpy(buffer + offset, record->values[i], maxdata);
+            offset += maxdata;
+        }
+    }
+}
+
+void deserialize_record(Record* record, char* buffer, Table* table) {
+    int offset = 0;
+    for (int i = 0; i < table->num_fields; i++) {
+        if (table->fields[i].type == FIELD_TYPE_INT) {
+            record->values[i] = malloc(sizeof(int));
+            memcpy(record->values[i], buffer + offset, sizeof(int));
+            offset += sizeof(int);
+        } else if (table->fields[i].type == FIELD_TYPE_STRING) {
+            record->values[i] = malloc(maxdata * sizeof(char));
+            memcpy(record->values[i], buffer + offset, maxdata);
+            offset += maxdata;
+        }
+    }
+}
+
+void print_record(Record* record, Table* table) {
+    for(int i = 0; i < table->num_fields; i++) {
+        printf("%s: ", table->fields[i].name);
+        if(table->fields[i].type == FIELD_TYPE_INT) {
+            printf("%d\n", *((int*)record->values[i]));
+        } else if(table->fields[i].type == FIELD_TYPE_STRING) {
+            printf("%s\n", (char*)record->values[i]);
+        }
+    }
+}
+
+void write_to_binary_file(void* data, size_t size, const char* filename) {
+    filename = "databasetrial.bin";
+    FILE *file = fopen(filename, "ab");
+    if (file == NULL) {
+        printf("Unable to open file\n");
+        return;
+    }
+
+    size_t writeCount = fwrite(data, size, 1, file);
+    if (writeCount != 1) {
+        printf("Failed to write data to file\n");
     }
 
     fclose(file);
 }
 
-void read_from_binary_file(void *database, int *num_items, size_t item_size, const char *filename) {
+void read_from_binary_file(Record *recordDatabase, int *num_records, Table* table) {
+    const char* filename = "databasetrial.bin";
     FILE *file = fopen(filename, "rb");
     if (file == NULL) {
-        printf("Could not open file for reading\n");
+        printf("Unable to open file\n");
         return;
     }
 
     Header header;
     fread(&header, sizeof(Header), 1, file);
-    *num_items = header.num_records;
+    *num_records = header.num_records;
+
+    char* buffer = malloc(table->num_fields * maxdata);
 
     for(int i = 0; i < header.num_records; i++) {
-        deserialize((char*)database + i * item_size, item_size, file);
+        fread(buffer, table->num_fields * maxdata, 1, file);
+        deserialize_record(&recordDatabase[i], buffer, table);
     }
 
+    free(buffer);
     fclose(file);
 }
-void addcompany(char* company_info){
-    if(num_companies >= MAX_COMPANY_DATABASE){
-        printf("Database is full\n");
-        return;
-    }   
 
-    Company new_company={0}; //initialize all fields to 0
-    memset(&new_company, 0, sizeof(Company)); // clear the struct
-    char* token;
-    char* rest=company_info;
+void add_record(Table* table, Record* record) {
+    // serialize record
+    char* buffer = malloc(table->num_fields * maxdata);
+    serialize_record(record, buffer, table);
 
-    int field = 0;
-    for(field = 0; field < 7; field++) {
-        char formatted[MAX_DATA];
-        int max_size;
-        token = strsep(&rest, ",");
-        if (token == NULL) {
-            token = "";
-        }
-        switch (field) {
-            case 0: max_size = maxname; strncpy(new_company.name, token, maxname); break;
+    // write serialized record to binary
+    write_to_binary_file(buffer, table->num_fields * maxdata, "databasetrial.bin");
 
-            case 1: max_size = maxphone; strncpy(new_company.phone, token, maxphone); break;
-            case 2: max_size = maxemail; strncpy(new_company.email, token, maxemail); break;
-            case 3: max_size = maxbirthday; strncpy(new_company.founded, token, maxbirthday); break;
-            case 4: max_size = maxcity; strncpy(new_company.location, token, maxcity); break;
-            case 5: max_size = maxjob; strncpy(new_company.industry, token, maxjob); break;
-            case 6: max_size = maxavailability; strncpy(new_company.hiring, token, maxavailability); break;
-            default: max_size = MAX_DATA; break;
-        }
-    }
-    companyDatabase[num_companies++] = new_company;
-    write_to_binary_file(companyDatabase, num_companies, sizeof(Company), "users.bin", "Company");
-}
-void update(char* tokens[]) {
-    char* phone_numb = tokens[1];
-    char* type = tokens[2];
-    char* change = tokens[3];
-
-    User userDatabase[MAX_USER_DATABASE];
-    int num_users = 0;
-
-    read_from_binary_file(userDatabase, &num_users);
-
-    int found = 0;
-
-    for(int i = 0; i < num_users; i++) {
-        if(strcmp(userDatabase[i].phone, phone_numb) == 0) {
-            found = 1;
-            printf("Matched phone number\n");
-
-            if(strcmp(type, "name") == 0) {
-                strncpy(userDatabase[i].name, change, maxname);
-            } else if(strcmp(type, "phone") == 0) {
-                strncpy(userDatabase[i].phone, change, maxphone);
-            } else if(strcmp(type, "birthday") == 0) {
-                strncpy(userDatabase[i].birthday, change, maxbirthday);
-            } else if(strcmp(type, "email") == 0) {
-                strncpy(userDatabase[i].email, change, maxemail);
-            } else if(strcmp(type, "age") == 0) {
-                int age = atoi(change);
-                snprintf(userDatabase[i].age, sizeof(userDatabase[i].age), "%d", age);
-            } else if(strcmp(type, "job") == 0) {
-                strncpy(userDatabase[i].job, change, maxjob);
-            } else if(strcmp(type, "city") == 0) {
-                strncpy(userDatabase[i].city, change, maxcity);
-            } else if(strcmp(type, "pronouns") == 0) {
-                strncpy(userDatabase[i].pronouns, change, maxpronouns);
-            } else if(strcmp(type, "preferred") == 0) {
-                strncpy(userDatabase[i].preferred, change, maxpreferred);
-            } else if(strcmp(type, "availability") == 0) {
-                strncpy(userDatabase[i].availability, change, maxavailability);
-            }
-
-            printf("Updated field %s\n", type);
-            break;
-        }
-    }
-
-    if (!found) {
-        printf("Phone number not found\n");
-        return;
-    }
-
-   
-    write_to_binary_file(userDatabase, num_users, sizeof(User), "users.bin", "User");
+    free(buffer);
 }
 
-void updatecompany(char* tokens[]) {
-    char* company_phone = tokens[1];
-    char* type = tokens[2];
-    char* change = tokens[3];
-
-    Company companyDatabase[MAX_COMPANY_DATABASE];
-    int num_companies = 0;
-
-    read_from_binary_file(companyDatabase, &num_companies, sizeof(Company), "users.bin");
-
-    int found = 0;
-
-    for(int i = 0; i < num_companies; i++) {
-        if(strcmp(companyDatabase[i].phone, company_phone) == 0) {
-            found = 1;
-            printf("Matched company phone\n");
-
-            if(strcmp(type, "name") == 0) {
-                strncpy(companyDatabase[i].name, change, maxname);
-            } else if(strcmp(type, "phone") == 0) {
-                strncpy(companyDatabase[i].phone, change, maxphone);
-            } else if(strcmp(type, "founded") == 0) {
-                strncpy(companyDatabase[i].founded, change, maxbirthday);
-            } else if(strcmp(type, "email") == 0) {
-                strncpy(companyDatabase[i].email, change, maxemail);
-            } else if(strcmp(type, "location") == 0) {
-                strncpy(companyDatabase[i].location, change, maxcity);
-            } else if(strcmp(type, "industry") == 0) {
-                strncpy(companyDatabase[i].industry, change, maxjob);
-            } else if(strcmp(type, "hiring") == 0) {
-                strncpy(companyDatabase[i].hiring, change, maxavailability);
-            }
-
-            printf("Updated field %s\n", type);
-            break;
-        }
-    }
-
-    if (!found) {
-        printf("Company phone not found\n");
+void search (char* table_name, char* search_value){
+    Table* table = find_table(table_name);
+    if(table == NULL){
+        printf("Table not found\n");
         return;
     }
 
-    write_to_binary_file(companyDatabase, num_companies, sizeof(Company), "users.bin", "Company");
+    FILE *file = fopen("databasetrial.bin", "rb");
+    if(file == NULL){
+        printf("Could not open file for reading-search\n");
+        return;
+    }
+
+    Header header;
+    fread(&header, sizeof(Header), 1, file);
+
+    Record record;
+    int match = 0;
+
+    char* buffer = malloc(table->num_fields * maxdata); // Added buffer declaration and initialization
+
+    for(int i = 0; i < header.num_records; i++) {
+        fread(buffer, sizeof(Record), 1, file); // read the record data into the buffer
+        deserialize_record(&record, buffer, table);
+        char* second_field = get_second_field(&record, table); // get the second field
+        if(strcmp(second_field, search_value) == 0){
+            match = 1;
+            print_record(&record, table);
+            free(second_field); // free the memory allocated by get_second_field
+            break;
+        }
+        free(second_field); // free the memory allocated by get_second_field
+    }
+
+    if(!match){
+        printf("No record found with second field %s in table %s\n", search_value, table_name);
+    }
+
+    free(buffer); // Free the buffer memory
+    fclose(file);
 }
 void main() {
-    printf("Welcome to the networking system!\n");
+    create_table("user", user_fields, 10);
+    create_table("company", company_fields, 7);
 
-    read_from_binary_file(userDatabase, &num_users, sizeof(User), "users.bin");
+    printf("Welcome to the system!\n");
 
     char *cmds = 
     "\nUsage:\n"
     "  execute <command> [options]\n\n"
     "Commands:\n"
-    "  adduser                                   Add a new user.\n"
-    "  adduserhelp                               Show the format to add a new user.\n"
-    "  searchuser <phone number>                 Search their name by entering the phone number.\n"
-    "  updateuser <phone number> <type> <change> Update <type> by phone number. Enter types to see types you can change.\n"
-    "  deleteuser <phone number>                 Delete user info by phone number.\n"
-    "  users                                     List all users.\n"
-    "  usertypes                                 List types used in update.\n"
-    "  addcompany                                Add a new company.\n"
-    "  addcompanyhelp                            Show the format to add a new company.\n"
-    "  searchcompany <name>                      Search the company by entering the name.\n"
-    "  updatecompany <phone> <type> <change>     Update <type> by company phone. Enter companytypes to see types you can change.\n"
-    "  deletecompany <phone>                     Delete company info by phone number.\n"
+    "  add  company <data>                       Add a new record.\n"
+    "  add  user <data>                          Add a new record.\n"
+    "  search company <search_value>             Search for a company record.\n"
+    "  search user <search_value>                Search for a user record.\n"
     "  help                                      Show this list of commands.\n"
     "  exit                                      Close this program and save updates.\n\n";
     printf("%s", cmds);
@@ -330,77 +317,28 @@ void main() {
         }
         char *cmd = tokens[0];
 
-        if (strcmp(cmd, "adduser") == 0) {
-            if(tokens_length < 2){
+        if (strcmp(cmd, "add") == 0) {
+            if(tokens_length < 3){
                 printf("Invalid number of arguments\n");
-                printf("Usage: add <user info>\n");
-                continue;
-            }
-            add(tokens[1]);
-        } 
-            else if(strcmp(cmd, "adduserhelp") == 0){
-            addhelp();
-        }
-        else if(strcmp(cmd, "searchuser")== 0){
-            search(tokens, tokens_length);
-        }
-        else if (strcmp(cmd, "users")==0){
-            users();
-        }
-
-        else if(strcmp(cmd,"usertypes")==0){
-            types();
-        }
-
-        else if(strcmp(cmd,"updateuser")==0){
-            update(tokens);
-        }
-
-        else if(strcmp(cmd,"deleteuser")==0){
-            delete(tokens);
-        }
-        else if (strcmp(cmd,"addcompany")==0){
-                if(tokens_length < 2){
-                printf("Invalid number of arguments\n");
-                printf("Usage: add <user info>\n");
-                continue;
-            }
-            addcompany(tokens[1]);
-        }
-
-        else if (strcmp(cmd,"addcompanyhelp")==0){
-            addcompanyhelp();
-        }
-
-        else if(strcmp(cmd,"searchcompany")==0){
-            searchcompany(tokens, tokens_length);
-        }
-
-        else if(strcmp(cmd,"updatecompany")==0){
-            updatecompany(tokens);
-        }
-
-        else if(strcmp(cmd,"deletecompany")==0){
-            deletecompany(tokens);
-        }
-
-        else if(strcmp(cmd,"companies")==0){
-            companies();
-        }
-
-        else if(strcmp(cmd,"companytypes")==0){
-            companytypes();
-        }
-
-        
+                printf("Usage: add <table_name> <data>\n");
+            continue;
+    }
+    add(tokens[1], tokens[2]);
+}
+else if (strcmp(cmd, "search") == 0) {
+    if(tokens_length < 3){
+        printf("Invalid number of arguments\n");
+        printf("Usage: search <table_name> <search_value>\n");
+        continue;
+    }
+    search(tokens[1], tokens[2]);
+}
         else if(strcmp(cmd,"help")==0){
             printf("%s", cmds);
         }
-
         else if(strcmp(cmd,"exit")==0){
             break;
         }
-
         else{
             printf("Invalid command\n");
         }
@@ -408,224 +346,5 @@ void main() {
         printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
     }
 
-    printf("Changes saved, thank you for using the network system!\n");
-}
-
-void addcompanyhelp(){
-    printf("Enter company information in the following format:\n\n");
-    printf("name,phone,email,founded,location,industry,hiring\n\n");
-    printf("To skip information, enter two consecutive commas\n");
-    printf("Example: Google,1234567890\n");
-}
-
-
-void addhelp(){
-    printf("Enter user information in the following format:\n\n");
-    printf("name,phone,birthday,email,age,job,city,pronouns,preferred(communication method),availability\n\n");
-    printf("To skip information, enter two consecutive commas\n");
-    printf("Example: Alex,1234567890,01/01/2000,,20,Engineer,New_York,he/him,phone,weekdays\n\n");
-
-    printf("If you want to enter lastname enter it in this format: Alex-Smith\n");
-    printf("DO NOT enter spaces when entering data\n");
-}
-
-char *trim(char *str) {
-    char *end;
-    while(isspace((unsigned char)*str)) str++;
-
-    if(*str == 0) 
-        return str;
-
-    end = str + strlen(str) - 1;
-    while(end > str && isspace((unsigned char)*end)) end--;
-    end[1] = '\0';
-
-    return str;
-}
-
-
-char* field_to_string(int field) {
-    switch(field) {
-        case 0: return "name";
-        case 1: return "phone";
-        case 2: return "birthday";
-        case 3: return "email";
-        case 4: return "age";
-        case 5: return "job";
-        case 6: return "city";
-        case 7: return "pronouns";
-        case 8: return "preferred";
-        case 9: return "availability";
-        default: return "";
-    }
-}
-
-void search (char* tokens[], int tokens_length){
-    char* phone_numb = tokens[1];
-
-    FILE *file = fopen("users.bin", "rb");
-    if(file == NULL){
-        printf("Could not open file for reading-search\n");
-        return;
-    }
-
-    Header header;
-    fread(&header, sizeof(Header), 1, file);
-
-    User user;
-    int match = 0;
-
-    for(int i = 0; i < header.num_records; i++) {
-        user = deserialize(file);
-        char* trimmed_phone = trim(user.phone); // trim the phone number
-        if(strcmp(trimmed_phone, phone_numb) == 0){
-            match = 1;
-            printf("Name: %s\n", user.name);
-            printf("Phone: %s\n", user.phone);
-            printf("Email: %s\n", user.email);
-            printf("Birthday: %s\n", user.birthday);
-            printf("Age: %s\n", user.age);
-            printf("Job: %s\n", user.job);
-            printf("City: %s\n", user.city);
-            printf("Pronouns: %s\n", user.pronouns);
-            printf("Preferred: %s\n", user.preferred);
-            printf("Availability: %s\n", user.availability);
-            break;
-        }
-    }
-
-    if(!match){
-        printf("No user found with phone number %s\n", phone_numb);
-    }
-
-    fclose(file);
-}
-
-void searchcompany(char* tokens[], int tokens_length){
-    char* company_name = tokens[1];
-
-    FILE *file = fopen("users.bin", "rb");
-    if(file == NULL){
-        printf("Could not open file for reading-search\n");
-        return;
-    }
-
-    Header header;
-    fread(&header, sizeof(Header), 1, file);
-
-    Company company;
-    int match = 0;
-
-    for(int i = 0; i < header.num_records; i++) {
-        company = deserialize(file, sizeof(Company);
-        char* trimmed_name = trim(company.name); // trim the company name
-        if(strcmp(trimmed_name, company_name) == 0){
-            match = 1;
-            printf("Name: %s\n", company.name);
-            printf("Phone: %s\n", company.phone);
-            printf("Email: %s\n", company.email);
-            printf("Founded: %s\n", company.founded);
-            printf("Location: %s\n", company.location);
-            printf("Industry: %s\n", company.industry);
-            printf("Hiring: %s\n", company.hiring);
-            break;
-        }
-    }
-
-    if(!match){
-        printf("No company found with name %s\n", company_name);
-    }
-
-    fclose(file);
-}
-
-void users() {
-    User userDatabase[MAX_USER_DATABASE];
-    int num_users = 0;
-    read_from_binary_file(userDatabase, &num_users, sizeof(User), "users.bin");
-    for(int i = 0; i < num_users; i++) {
-        printf("%s, %s \n", userDatabase[i].name, userDatabase[i].phone);
-    }
-}
-void companies() {
-    Company companyDatabase[MAX_COMPANY_DATABASE];
-    int num_companies = 0;
-    read_from_binary_file(companyDatabase, &num_companies, sizeof(Company), "users.bin");
-    for(int i = 0; i < num_companies; i++) {
-        printf("%s, %s \n", companyDatabase[i].name, companyDatabase[i].phone);
-    }
-}
-
-void types(){
-    
-     printf("name\nemail\nbirthday\nage\njob\ncity\npronouns\npreferred\navailability\n");
-
-}
-
-void companytypes(){
-    printf("name\nphone\nemail\nfounded\nlocation\nindustry\nhiring\n");
-}
-
-void delete(char* tokens[2]) {
-    char* phone_numb = tokens[1];
-    User userDatabase[MAX_USER_DATABASE];
-    int num_users = 0;
-
-    read_from_binary_file(userDatabase, &num_users, sizeof(User), "users.bin");
-
-    int found = 0;
-
-    for(int i = 0; i < num_users; i++) {
-        if(strcmp(userDatabase[i].phone, phone_numb) == 0) {
-            found = 1;
-            printf("Matched phone number, deleting user\n");
-
-          
-            for(int j = i; j < num_users - 1; j++) {
-                userDatabase[j] = userDatabase[j + 1];
-            }
-
-            num_users--;
-            break;
-        }
-    }
-
-    if (!found) {
-        printf("Phone number not found\n");
-        return;
-    }
-
-    write_to_binary_file(userDatabase, num_users, sizeof(User), "users.bin", "User");
-}
-
-void deletecompany(char* tokens[2]) {
-    char* phone_numb = tokens[1];
-    Company companyDatabase[MAX_COMPANY_DATABASE];
-    int num_companies = 0;
-
-    read_from_binary_file(companyDatabase, &num_companies, sizeof(Company), "users.bin");
-
-    int found = 0;
-
-    for(int i = 0; i < num_companies; i++) {
-        if(strcmp(companyDatabase[i].phone, phone_numb) == 0) {
-            found = 1;
-            printf("Matched phone number, deleting company\n");
-
-            for(int j = i; j < num_companies - 1; j++) {
-                companyDatabase[j] = companyDatabase[j + 1];
-            }
-
-            num_companies--;
-            break;
-        }
-    }
-
-    if (!found) {
-        printf("Phone number not found\n");
-        return;
-    }
-
-    write_to_binary_file(companyDatabase, num_companies, sizeof(Company), "users.bin", "Company");
-
+    printf("Changes saved, thank you for using the system!\n");
 }

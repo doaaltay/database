@@ -90,15 +90,7 @@ User deserialize_user(FILE *file) {
     return user;
 }
 
-void serialize_tree(Tree tree, FILE *file) {
-    fwrite(&tree, sizeof(Tree), 1, file);
-}
 
-Tree deserialize_tree(FILE *file) {
-    Tree tree;
-    fread(&tree, sizeof(Tree), 1, file);
-    return tree;
-}
 
 void serialize_company(Company company, FILE *file) {
     fwrite(&company, sizeof(Company), 1, file);
