@@ -1,4 +1,3 @@
 name                 phone                email                birthday             age                  job                  city                 pronouns             preferred            availability         
-selin                12345              hi                                                                                                                                                                        
-Tom                  1212                                                                                                                                                                                         
-selena               123                                                                                                                                                                                          
+Selena               12345                selena@gmail.com                                                                                                                                                        
+Tom                  123                newmail                                                                                                                                                                   

@@ -141,7 +141,7 @@ void add(char *table_name, char *data) {
         }
     }
 
-    // Parse the data
+    // parse the data
     char *token, *tofree, *string;
     tofree = string = strdup(data);  
     for (int i = 0; i < table->num_fields; i++) {
@@ -227,23 +227,83 @@ void search(char *table_name, char *search_string) {
 }
 
 void write_padded_value(FILE* file, char* new_value) {
-    // Create a padded string with the new value
+    
     char padded_string[maxdata + 1];
     int new_value_length = strlen(new_value);
     if (new_value_length > maxdata) {
-        // Truncate the new value if it's too long
+
         new_value_length = maxdata;
     }
     int padding_length = maxdata - new_value_length;
     snprintf(padded_string, sizeof(padded_string), "%*s%.*s", padding_length, "", new_value_length, new_value);
-    // Write the padded string to the file
+    // write the string to the file
     fputs(padded_string, file);
 }
 
 
-
 void update(char* table_name, char* search_value, char* field_name, char* new_value) {
-   
+    Table* table = NULL;
+    for (int i = 0; i < header.num_tables; i++) {
+        if (strcmp(header.tables[i].name, table_name) == 0) {
+            table = &header.tables[i];
+            break;
+        }
+    }
+    if (table == NULL) {
+        printf("Table not found\n");
+        return;
+    }
+
+    FILE* file = fopen("databasenew.txt", "r+");
+    if (file == NULL) {
+        printf("Failed to open file\n");
+        return;
+    }
+
+    //read each line
+    char line[buffer_size];
+    long int start_of_line = ftell(file);
+    while (fgets(line, sizeof(line), file)) {
+        // get second field which is used for update
+        char* token = strtok(line, " ");
+        if (token != NULL) {
+            token = strtok(NULL, " ");
+        }
+
+        if (token != NULL && strcmp(token, search_value) == 0) {
+
+            for (int i = 0; i < table->num_fields; i++) {
+                if (strcmp(table->fields[i].name, field_name) == 0) {
+
+                    int start_pos = i * maxdata;
+                  
+                    fseek(file, start_of_line + start_pos, SEEK_SET);
+
+                    fprintf(file, "%-*s", maxdata, new_value);
+                    fclose(file);
+                    return;
+                }
+            }
+            printf("Field not found\n");
+            fclose(file);
+            return;
+        }
+        start_of_line = ftell(file);
+    }
+
+    printf("Record not found\n");
+    fclose(file);
+}
+
+
+void update2(char* table_name, char* search_value, char* field_name, char* new_value) {
+    char padded_new_value[maxdata + 3]; 
+    // +3 for two spaces and  null terminator
+    //- remove this: when you update email it is more on the left by 2 spaces
+    
+    
+    sprintf(padded_new_value, "  %s", new_value);
+    memcpy(new_value, padded_new_value, strlen(padded_new_value) + 1); // +1 for the null terminator?
     Table* table = NULL;
     for (int i = 0; i < header.num_tables; i++) {
         if (strcmp(header.tables[i].name, table_name) == 0) {
@@ -279,6 +339,8 @@ void update(char* table_name, char* search_value, char* field_name, char* new_va
             for (int i = 0; i < table->num_fields; i++) {
                 if (strcmp(table->fields[i].name, field_name) == 0) {
                     // found the field to update
+
+
                     // calculate the start position of the field in the line
                     int start_pos = i * maxdata;
                   
