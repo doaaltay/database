@@ -1,6 +1,6 @@
 #define FIELDNAMELENGTH 20
 #define max_num_fields 10
-#define maxdata 20
+#define maxdata 21
 #define max_num_tables 10
 #define buffer_size 1000
 #define EXIT_FAILURE 1
@@ -8,6 +8,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+
 
 
 
@@ -89,6 +91,64 @@ void write_to_file(Table *table, Record *record) {
     fclose(file);
 }
 
+void create_table_from_command(char *command) {
+    char *table_name_start = command;
+    char *table_name_end = strchr(table_name_start, '(');
+
+    if (table_name_end == NULL) {
+        printf("Error: Command must include '(' after table name.\n");
+        return;
+    }
+
+    int table_name_length = table_name_end - table_name_start;
+    char *table_name = malloc(table_name_length + 1);
+    strncpy(table_name, table_name_start, table_name_length);
+    table_name[table_name_length] = '\0';
+
+    char *fields_definition_start = table_name_end + 1;
+    char *fields_definition_end = strchr(fields_definition_start, ')');
+
+    if (fields_definition_end == NULL) {
+        printf("Error: Command must include ')' after fields definition.\n");
+        return;
+    }
+
+    int fields_definition_length = fields_definition_end - fields_definition_start;
+    char *fields_definition = malloc(fields_definition_length + 1);
+    strncpy(fields_definition, fields_definition_start, fields_definition_length);
+    fields_definition[fields_definition_length] = '\0';
+
+    Field fields[max_num_fields];
+    int num_fields = 0;
+    char *field_definition = strtok(fields_definition, ",");
+
+    while (field_definition != NULL && num_fields < max_num_fields) {
+        char *field_name = strtok(field_definition, " ");
+        char *field_type = strtok(NULL, " ");
+
+        if (field_name == NULL || field_type == NULL) {
+            printf("Error: Each field must have a name and a type, separated by a space.\n");
+            return;
+        }
+
+        strncpy(fields[num_fields].name, field_name, FIELDNAMELENGTH);
+
+        if (strcmp(field_type, "int") == 0) {
+            fields[num_fields].type = FIELD_TYPE_INT;
+        } else if (strcmp(field_type, "str") == 0) {
+            fields[num_fields].type = FIELD_TYPE_STRING;
+        } else {
+            printf("Error: Field type must be 'int' or 'str'.\n");
+            return;
+        }
+
+        num_fields++;
+        field_definition = strtok(NULL, ",");
+    }
+
+    create_table(table_name, fields, num_fields);
+}
+
 
 void create_table(char *name, Field fields[], int num_fields) {
   
@@ -113,7 +173,78 @@ void create_table(char *name, Field fields[], int num_fields) {
     }
     table->num_fields = num_fields;
 }
+
+
+
+
 void add(char *table_name, char *data) {
+    // find the table
+    Table *table = NULL;
+    for (int i = 0; i < header.num_tables; i++) {
+        if (strcmp(header.tables[i].name, table_name) == 0) {
+            table = &header.tables[i];
+            break;
+        }
+    }
+    if (table == NULL) {
+        printf("Table not found\n");
+        return;
+    }
+
+    Record record;
+    for (int i = 0; i < table->num_fields; i++) {
+        record.values[i] = malloc(maxdata);
+        if (record.values[i] == NULL) {
+            printf("Memory allocation failed\n");
+            return;
+        }
+        if (table->fields[i].type == FIELD_TYPE_INT) {
+            *((int *)record.values[i]) = 0;  // initialize integer fields to 0
+        } else if (table->fields[i].type == FIELD_TYPE_STRING) {
+            memset(record.values[i], ' ', maxdata - 1);  // initialize string fields to spaces
+            ((char *)record.values[i])[maxdata - 1] = '\0';  // ensure the string is null-terminated
+        }
+    }
+
+    // parse the data
+    char *token, *tofree, *string;
+    tofree = string = strdup(data);  
+    int i = 0;
+    while (i < table->num_fields) {
+        token = strsep(&string, ",");
+        if (token == NULL) {
+            token = "";  // use an empty string if there are no more tokens
+        }
+        if (table->fields[i].type == FIELD_TYPE_INT) {
+            // parse the integer value and store it in the record
+            *((int *)record.values[i]) = atoi(token);
+        } else if (table->fields[i].type == FIELD_TYPE_STRING) {
+            // copy the string value to the record
+            strncpy(record.values[i], token, strlen(token));
+            // pad the remaining space with spaces
+            for (int j = strlen(token); j < maxdata - 1; j++) {
+                ((char *)record.values[i])[j] = ' ';
+            }
+        }
+        i++;
+    }
+    if (string != NULL) {
+        printf("Too many fields in data\n");
+        return;
+    }
+
+    // add the record to table
+    write_to_file(table, &record);
+
+    // free the memory allocated for the record
+    for (int i = 0; i < table->num_fields; i++) {
+        free(record.values[i]);
+    }
+
+    free(tofree);
+}
+
+void add2(char *table_name, char *data) {
     // find the table
     Table *table = NULL;
     for (int i = 0; i < header.num_tables; i++) {
@@ -224,6 +355,18 @@ void search(char *table_name, char *search_string) {
     }
 
     fclose(file);
+}
+
+
+void remove_extra_spaces(char* str) {
+    char* i = str;
+    char* j = str;
+    while(*j != 0) {
+        *i = *j++;
+        if(*i != ' ' || (*i == ' ' && *(i - 1) != ' '))
+            i++;
+    }
+    *i = 0;
 }
 
 void write_padded_value(FILE* file, char* new_value) {
@@ -508,6 +651,26 @@ void main() {
         }
      update(tokens[1], tokens[2], tokens[3], tokens[4]);
 }
+else if (strcmp(cmd, "create")==0){
+    if(tokens_length < 2){
+        printf("Invalid number of arguments\n");
+        printf("Usage: create <table_definition>\n");
+        printf("Example: create table_name (field1_name field1_type, field2_name field2_type, ...)\n");
+        printf("Example: create user (name str, phone str, email str, birthday str, age str, job str, city str, pronouns str, preferred str, availability str)\n");
+        continue;
+    }
+    // concatenate all the tokens after "create" into a single string
+    char table_definition[100] = "";
+    for (int i = 1; i < tokens_length; i++) {
+        strcat(table_definition, tokens[i]);
+        if (i < tokens_length - 1) {
+            strcat(table_definition, " ");
+        }
+    }
+    // remove extra spaces from the table definition
+    remove_extra_spaces(table_definition);
+    create_table_from_command(table_definition);
+}
         else if(strcmp(cmd,"help")==0){
             printf("%s", cmds);
         }
@@ -523,3 +686,4 @@ void main() {
 
     printf("Changes saved, thank you for using the system!\n");
 }
+

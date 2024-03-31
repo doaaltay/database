@@ -1,2 +1,7 @@
 name                 phone                email                birthday             age                  job                  city                 pronouns             preferred            availability         
-Tom                  12123              newmail                                                                                                                                                                   
+Tom                  12123              nenewemail                                                                                                                                                                
+selin                1212                                                                                                                                                                                         
+selena               123                                       birthday                                                                                                                                           
+selin               1212                                                                                                                                                                                
+name                phone               email               birthday                                                                                                                                    
+name                 phone                email                birthday                                                                                                                                           
