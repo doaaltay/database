@@ -399,7 +399,7 @@ void updateold(char* table_name, char* search_value, char* field_name, char* new
         return;
     }
 
-    //read each line
+   
     char line[buffer_size];
     long int start_of_line = ftell(file);
     while (fgets(line, sizeof(line), file)) {
@@ -409,23 +409,17 @@ void updateold(char* table_name, char* search_value, char* field_name, char* new
             token = strtok(NULL, " ");
         }
 
-        // check if this is the record to update
         if (token != NULL && strcmp(token, search_value) == 0) {
-            // found the record 
-            // now find the field to update
+
+ 
             for (int i = 0; i < table->num_fields; i++) {
                 if (strcmp(table->fields[i].name, field_name) == 0) {
-                    // found the field to update
 
-                    // calculate the start position of the field in the line
                     int start_pos = i * maxdata;
                   
                     fseek(file, start_of_line + start_pos, SEEK_SET);
      
-                    // Use fprintf to write the new value with a fixed width of maxdata.
-                    // This ensures that the new value will always occupy exactly maxdata characters,
-                    // regardless of its actual length. If the new value is shorter than maxdata,
-                    // the remaining space will be filled with spaces.
+               
                     fprintf(file, "%-*s", maxdata, new_value);
                     fclose(file);
                     return;
