@@ -1,0 +1,36 @@
+.TH man 5 "17 March 2024" "1.0" "Tamidsh Config Man Page"
+.SH NAME
+tamidsh_config: configuration file for tamidsh
+.SH DESCRIPTION
+The tamidsh program can be configured using a configuration file.
+The configuration file is a plain text file that contains key -value pairs one per line.
+Lines with  # are ignored 
+Following are supported by this program:
+
+.IP interactive
+set it true  (interactive=true)  to enable the interactive mode, false to disable
+
+.IP Login
+set it true ( login=true) to enable login mode, login=false to disable it
+
+.SH FILE FORMAT
+Each line should be in the format
+.IP
+key=value
+
+.SH EXAMPLE
+.IP
+\# This is  a comment
+.br
+interactive=true
+.br
+login=false
+
+.SH FILE LOCATION
+The configuration file can be located in the following
+1. /etc/tamidsh
+2. $XDG_CONFIG_HOME/tamidsh
+3. $HOME/tamidsh
+
+.SH SEE ALSO
+see tamidsh(1) for shell man page
